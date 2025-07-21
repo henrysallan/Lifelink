@@ -9,7 +9,7 @@ function ChatInterface() {
   const { user, logout } = useAuth();
 
   return (
-    <div className="h-screen bg-black flex flex-col">
+    <div className="h-full bg-black flex flex-col">
       <header className="border-b border-green-400">
         <div className="max-w-4xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
