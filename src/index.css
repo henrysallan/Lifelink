@@ -1,10 +1,12 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+
+
 
 @layer base {
   body {
-    @apply bg-black text-green-400 font-mono;
+    background-color: black;
+    color: #4ade80;
     font-family: "VT323", monospace;
   }
   
