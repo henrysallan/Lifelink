@@ -20,6 +20,7 @@ export const Chat = () => {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingFile, setUploadingFile] = useState<FileUpload | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // Add this line
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -163,7 +164,21 @@ export const Chat = () => {
   } catch {  // Remove the unused 'error' parameter
     return 'now';
   }
-};
+    };
+
+    const handleCopyMessage = (textToCopy: string, messageId: string) => {
+        if (!textToCopy) return;
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+        setCopiedMessageId(messageId);
+        setTimeout(() => {
+            setCopiedMessageId(null);
+        }, 1500); // Keep the visual feedback for 1.5 seconds
+        }).catch(err => {
+        console.error('Failed to copy message: ', err);
+        // You could add user-facing error feedback here if you want
+        });
+    };
 
   if (isLoading) {
     return (
@@ -198,11 +213,17 @@ export const Chat = () => {
                 <span>{message.timestamp ? formatTime(message.timestamp) : 'sending...'}</span>              </div>
               
               {message.text && (
-                <div className={`border ${
-                  message.userId === user?.uid
-                    ? 'border-cyan-400 text-cyan-400'
-                    : 'border-green-400 text-green-400'
-                } bg-black/50 px-3 py-2`}>
+                <div 
+                  className={`border ${
+                    message.userId === user?.uid
+                      ? 'border-cyan-400 text-cyan-400'
+                      : 'border-green-400 text-green-400'
+                  } bg-black/50 px-3 py-2 cursor-pointer transition-all ${
+                    copiedMessageId === message.id ? 'bg-green-400/30 border-green-400' : ''
+                  }`}
+                  onClick={() => handleCopyMessage(message.text || '', message.id)}
+                  title="Click to copy"
+                >
                   {message.text}
                 </div>
               )}
