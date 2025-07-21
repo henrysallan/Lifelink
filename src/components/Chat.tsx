@@ -19,7 +19,9 @@ interface ChatProps {
   onSearchChange: (query: string) => void;
 }
 
-export const Chat = ({ searchQuery, onSearchChange }: ChatProps) => {
+// src/components/Chat.tsx
+
+export const Chat = ({ searchQuery = '', onSearchChange = () => {} }: ChatProps) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -29,6 +31,7 @@ export const Chat = ({ searchQuery, onSearchChange }: ChatProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // This is the section we are fixing
   const filteredMessages = useMemo(() => {
     if (!searchQuery.trim()) {
       return messages;
@@ -36,21 +39,27 @@ export const Chat = ({ searchQuery, onSearchChange }: ChatProps) => {
     const lowercasedQuery = searchQuery.toLowerCase();
     
     return messages.filter(msg => {
-      const messageText = msg.text?.toLowerCase() || '';
-      const fileName = msg.fileName?.toLowerCase() || '';
-      const messageDate = msg.timestamp 
-        ? new Intl.DateTimeFormat('en-US', { 
-            month: '2-digit', 
-            day: '2-digit', 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            hour12: false 
-          }).format(msg.timestamp.toDate())
-        : '';
+      try {
+        const messageText = msg.text?.toLowerCase() || '';
+        const fileName = msg.fileName?.toLowerCase() || '';
+        const messageDate = msg.timestamp 
+          ? new Intl.DateTimeFormat('en-US', { 
+              month: '2-digit', 
+              day: '2-digit', 
+              hour: '2-digit', 
+              minute: '2-digit', 
+              hour12: false 
+            }).format(msg.timestamp.toDate())
+          : '';
 
-      return messageText.includes(lowercasedQuery) ||
-             fileName.includes(lowercasedQuery) ||
-             messageDate.includes(lowercasedQuery);
+        return messageText.includes(lowercasedQuery) ||
+               fileName.includes(lowercasedQuery) ||
+               messageDate.includes(lowercasedQuery);
+      } catch (error) {
+        // This will catch any errors for a single message and prevent a crash
+        console.error("Failed to process a message for filtering:", msg, error);
+        return false; // Exclude the problematic message from the results
+      }
     });
   }, [messages, searchQuery]);
 
