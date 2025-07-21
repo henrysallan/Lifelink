@@ -11,7 +11,7 @@ export interface Message {
   fileName?: string;
   fileSize?: number;
   fileType?: string;
-  timestamp: Timestamp;
+  timestamp: Timestamp | null;  // Allow null
   deviceInfo?: string;
 }
 

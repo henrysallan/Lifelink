@@ -137,7 +137,10 @@ export const Chat = () => {
     return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
   };
 
-  const formatTime = (timestamp: Timestamp) => {
+  const formatTime = (timestamp: Timestamp | null) => {
+  if (!timestamp) return 'now';
+  
+  try {
     const date = timestamp.toDate();
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
@@ -157,7 +160,10 @@ export const Chat = () => {
       minute: '2-digit',
       hour12: false
     });
-  };
+  } catch {  // Remove the unused 'error' parameter
+    return 'now';
+  }
+};
 
   if (isLoading) {
     return (
@@ -189,8 +195,7 @@ export const Chat = () => {
               <div className="flex items-center gap-2 text-xs text-green-600 mb-1">
                 <span>{message.userName}</span>
                 <span>{message.deviceInfo}</span>
-                <span>{formatTime(message.timestamp)}</span>
-              </div>
+                <span>{message.timestamp ? formatTime(message.timestamp) : 'sending...'}</span>              </div>
               
               {message.text && (
                 <div className={`border ${
