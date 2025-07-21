@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   collection, 
   addDoc, 
@@ -14,15 +14,45 @@ import { db, storage } from '../config/firebase';
 import { useAuth } from '../hooks/useAuth';
 import type { Message, FileUpload } from '../types';
 
-export const Chat = () => {
+interface ChatProps {
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+}
+
+export const Chat = ({ searchQuery, onSearchChange }: ChatProps) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingFile, setUploadingFile] = useState<FileUpload | null>(null);
-  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // Add this line
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return messages;
+    }
+    const lowercasedQuery = searchQuery.toLowerCase();
+    
+    return messages.filter(msg => {
+      const messageText = msg.text?.toLowerCase() || '';
+      const fileName = msg.fileName?.toLowerCase() || '';
+      const messageDate = msg.timestamp 
+        ? new Intl.DateTimeFormat('en-US', { 
+            month: '2-digit', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            hour12: false 
+          }).format(msg.timestamp.toDate())
+        : '';
+
+      return messageText.includes(lowercasedQuery) ||
+             fileName.includes(lowercasedQuery) ||
+             messageDate.includes(lowercasedQuery);
+    });
+  }, [messages, searchQuery]);
 
   useEffect(() => {
     const q = query(
@@ -32,11 +62,11 @@ export const Chat = () => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const messages: Message[] = [];
+      const messagesData: Message[] = [];
       snapshot.forEach((doc) => {
-        messages.push({ id: doc.id, ...doc.data() } as Message);
+        messagesData.push({ id: doc.id, ...doc.data() } as Message);
       });
-      setMessages(messages.reverse());
+      setMessages(messagesData.reverse());
       setIsLoading(false);
     });
 
@@ -45,8 +75,16 @@ export const Chat = () => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [filteredMessages]);
 
+  const handleCopyMessage = (textToCopy: string, messageId: string) => {
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 1500);
+    }).catch(err => console.error('Failed to copy:', err));
+  };
+  
   const getDeviceInfo = () => {
     const userAgent = navigator.userAgent;
     if (/mobile/i.test(userAgent)) return '[MOB]';
@@ -93,8 +131,7 @@ export const Chat = () => {
 
     setUploadingFile({ file, progress: 0 });
 
-    uploadTask.on(
-      'state_changed',
+    uploadTask.on('state_changed',
       (snapshot) => {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setUploadingFile(prev => prev ? { ...prev, progress } : null);
@@ -106,7 +143,6 @@ export const Chat = () => {
       },
       async () => {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        
         const messageData = {
           userId: user.uid,
           userEmail: user.email || '',
@@ -119,10 +155,8 @@ export const Chat = () => {
           timestamp: serverTimestamp(),
           deviceInfo: getDeviceInfo(),
         };
-
         await addDoc(collection(db, 'messages'), messageData);
         setUploadingFile(null);
-
         if (isLarge) {
           setTimeout(() => {
             deleteObject(storageRef).catch(console.error);
@@ -139,46 +173,19 @@ export const Chat = () => {
   };
 
   const formatTime = (timestamp: Timestamp | null) => {
-  if (!timestamp) return 'now';
-  
-  try {
-    const date = timestamp.toDate();
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    
-    if (isToday) {
-      return date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      });
+    if (!timestamp) return 'now';
+    try {
+      const date = timestamp.toDate();
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      if (isToday) {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+      return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch {
+      return 'now';
     }
-    
-    return date.toLocaleDateString('en-US', { 
-      month: '2-digit', 
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-  } catch {  // Remove the unused 'error' parameter
-    return 'now';
-  }
-    };
-
-    const handleCopyMessage = (textToCopy: string, messageId: string) => {
-        if (!textToCopy) return;
-
-        navigator.clipboard.writeText(textToCopy).then(() => {
-        setCopiedMessageId(messageId);
-        setTimeout(() => {
-            setCopiedMessageId(null);
-        }, 1500); // Keep the visual feedback for 1.5 seconds
-        }).catch(err => {
-        console.error('Failed to copy message: ', err);
-        // You could add user-facing error feedback here if you want
-        });
-    };
+  };
 
   if (isLoading) {
     return (
@@ -190,70 +197,43 @@ export const Chat = () => {
 
   return (
     <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full min-h-0">
-      {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((message) => (
+        {filteredMessages.map((message: Message) => (
           <div
             key={message.id}
-            className={`flex items-start gap-2 text-sm ${
-              message.userId === user?.uid ? 'flex-row-reverse' : ''
-            }`}
+            className={`flex items-start gap-2 text-sm ${message.userId === user?.uid ? 'flex-row-reverse' : ''}`}
           >
             <div className="w-8 h-8 border border-green-400 flex items-center justify-center text-xs">
               {message.userName?.[0]?.toUpperCase() || '?'}
             </div>
-            <div
-              className={`flex flex-col max-w-[70%] ${
-                message.userId === user?.uid ? 'items-end' : 'items-start'
-              }`}
-            >
+            <div className={`flex flex-col max-w-[70%] ${message.userId === user?.uid ? 'items-end' : 'items-start'}`}>
               <div className="flex items-center gap-2 text-xs text-green-600 mb-1">
                 <span>{message.userName}</span>
                 <span>{message.deviceInfo}</span>
-                <span>{message.timestamp ? formatTime(message.timestamp) : 'sending...'}</span>              </div>
-              
+                <span>{message.timestamp ? formatTime(message.timestamp) : 'sending...'}</span>
+              </div>
               {message.text && (
                 <div 
-                  className={`border ${
-                    message.userId === user?.uid
-                      ? 'border-cyan-400 text-cyan-400'
-                      : 'border-green-400 text-green-400'
-                  } bg-black/50 px-3 py-2 cursor-pointer transition-all ${
-                    copiedMessageId === message.id ? 'bg-green-400/30 border-green-400' : ''
-                  }`}
+                  className={`border ${message.userId === user?.uid ? 'border-cyan-400 text-cyan-400' : 'border-green-400 text-green-400'} bg-black/50 px-3 py-2 cursor-pointer transition-all ${copiedMessageId === message.id ? 'bg-green-400/30 border-green-400' : ''}`}
                   onClick={() => handleCopyMessage(message.text || '', message.id)}
                   title="Click to copy"
                 >
                   {message.text}
                 </div>
               )}
-              
               {message.fileUrl && (
                 <a
                   href={message.fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`mt-2 border ${
-                    message.userId === user?.uid
-                      ? 'border-cyan-400 text-cyan-400 hover:bg-cyan-400/10'
-                      : 'border-green-400 text-green-400 hover:bg-green-400/10'
-                  } bg-black/50 p-3 block transition-colors`}
-                  onContextMenu={(e) => {
-                    if ('ontouchstart' in window) {
-                      e.preventDefault();
-                      window.open(message.fileUrl, '_blank');
-                    }
-                  }}
+                  className={`mt-2 border ${message.userId === user?.uid ? 'border-cyan-400 text-cyan-400 hover:bg-cyan-400/10' : 'border-green-400 text-green-400 hover:bg-green-400/10'} bg-black/50 p-3 block transition-colors`}
+                  onContextMenu={(e) => { if ('ontouchstart' in window) { e.preventDefault(); window.open(message.fileUrl, '_blank'); } }}
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-lg">[📎]</span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold truncate">
-                        {message.fileName}
-                      </p>
-                      <p className="text-xs opacity-70">
-                        {formatFileSize(message.fileSize || 0)}
-                      </p>
+                      <p className="font-bold truncate">{message.fileName}</p>
+                      <p className="text-xs opacity-70">{formatFileSize(message.fileSize || 0)}</p>
                     </div>
                   </div>
                 </a>
@@ -261,19 +241,20 @@ export const Chat = () => {
             </div>
           </div>
         ))}
+        {filteredMessages.length === 0 && !isLoading && (
+          <div className="text-center text-green-600 py-10">
+            &gt; NO MESSAGES FOUND FOR YOUR SEARCH &lt;
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Upload progress */}
       {uploadingFile && (
         <div className="px-4 py-2 border-t border-green-400 text-green-400">
           <div className="flex items-center gap-2 text-sm">
             <span>[UPLOADING] {uploadingFile.file.name}</span>
             <div className="flex-1 border border-green-400 h-2">
-              <div
-                className="bg-green-400 h-full transition-all"
-                style={{ width: `${uploadingFile.progress}%` }}
-              />
+              <div className="bg-green-400 h-full transition-all" style={{ width: `${uploadingFile.progress}%` }} />
             </div>
             <span>{Math.round(uploadingFile.progress)}%</span>
           </div>
@@ -283,7 +264,16 @@ export const Chat = () => {
         </div>
       )}
 
-      {/* Input area */}
+      <div className="p-4 border-t border-green-400 md:hidden">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="&gt; SEARCH MESSAGES..."
+          className="w-full px-3 py-2 bg-black border border-green-600 text-green-400 placeholder-green-700 focus:outline-none focus:border-glow"
+        />
+      </div>
+
       <form onSubmit={sendMessage} className="p-4 border-t border-green-400">
         <div className="flex gap-2">
           <button
@@ -298,10 +288,7 @@ export const Chat = () => {
             ref={fileInputRef}
             type="file"
             className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFileUpload(file);
-            }}
+            onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file); }}
             disabled={!!uploadingFile}
           />
           <input

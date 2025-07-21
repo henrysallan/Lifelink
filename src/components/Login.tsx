@@ -1,7 +1,13 @@
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export const Login = () => {
-  const { signInWithGoogle } = useAuth();
+  const { user, signInWithGoogle } = useAuth();
+
+  // If the user is already logged in, redirect to the homepage.
+  if (user) {
+    return <Navigate to="/" />;
+  }
 
   const handleGoogleLogin = async () => {
     try {
