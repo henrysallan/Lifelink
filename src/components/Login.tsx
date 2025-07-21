@@ -23,11 +23,11 @@ export const Login = () => {
           }}></div>
         </div>
         
-        <div className="border border-green-400 bg-black/80 backdrop-blur-sm p-8 max-w-sm w-full">
-          <div className="text-center mb-8">
+        <div className="  bg-black/80 backdrop-blur-sm p-8 max-w-sm w-full">
+          <div className="text-center mb-4">
             <div className="text-4xl mb-4">[ ⚡ ]</div>
-            <h1 className="text-2xl text-green-400 glow mb-2">
-              CROSS-DEVICE.CHAT
+            <h1 className="text-5xl text-green-400 glow mb-2">
+              LIFELINK
             </h1>
             <p className="text-green-600 text-lg">
               &gt; SECURE FILE TRANSFER PROTOCOL

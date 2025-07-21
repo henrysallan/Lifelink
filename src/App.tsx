@@ -13,7 +13,7 @@ function ChatInterface() {
       <header className="border-b border-green-400">
         <div className="max-w-4xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg text-green-400 glow">[CROSS-DEVICE.CHAT]</h1>
+            <h1 className="text-lg text-green-400 glow">LIFELINK</h1>
             <div className="flex items-center gap-3 text-sm">
               <span className="text-green-600">{user?.email}</span>
               <button
