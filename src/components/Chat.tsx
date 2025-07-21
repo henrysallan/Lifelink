@@ -23,7 +23,6 @@ export const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Subscribe to messages
   useEffect(() => {
     const q = query(
       collection(db, 'messages'),
@@ -43,20 +42,17 @@ export const Chat = () => {
     return () => unsubscribe();
   }, []);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Get device info
   const getDeviceInfo = () => {
     const userAgent = navigator.userAgent;
-    if (/mobile/i.test(userAgent)) return '📱 Mobile';
-    if (/tablet/i.test(userAgent)) return '📱 Tablet';
-    return '💻 Desktop';
+    if (/mobile/i.test(userAgent)) return '[MOB]';
+    if (/tablet/i.test(userAgent)) return '[TAB]';
+    return '[DSK]';
   };
 
-  // Send message
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user) return;
@@ -76,18 +72,16 @@ export const Chat = () => {
       await addDoc(collection(db, 'messages'), messageData);
     } catch (error) {
       console.error('Error sending message:', error);
-      setNewMessage(messageData.text); // Restore message on error
+      setNewMessage(messageData.text);
     }
   };
 
-  // Handle file upload
   const handleFileUpload = async (file: File) => {
     if (!user) return;
 
-    const MAX_SIZE = 30 * 1024 * 1024; // 30MB
+    const MAX_SIZE = 30 * 1024 * 1024;
     const isLarge = file.size > MAX_SIZE;
     
-    // Create storage path
     const timestamp = Date.now();
     const path = isLarge 
       ? `temp-files/${user.uid}/${timestamp}-${file.name}`
@@ -112,7 +106,6 @@ export const Chat = () => {
       async () => {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
         
-        // Send file message
         const messageData = {
           userId: user.uid,
           userEmail: user.email || '',
@@ -129,24 +122,21 @@ export const Chat = () => {
         await addDoc(collection(db, 'messages'), messageData);
         setUploadingFile(null);
 
-        // Schedule deletion for large files
         if (isLarge) {
           setTimeout(() => {
             deleteObject(storageRef).catch(console.error);
-          }, 10 * 24 * 60 * 60 * 1000); // 10 days
+          }, 10 * 24 * 60 * 60 * 1000);
         }
       }
     );
   };
 
-  // Format file size
   const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes < 1024) return bytes + 'B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
   };
 
-  // Format timestamp
   const formatTime = (timestamp: Timestamp) => {
     const date = timestamp.toDate();
     const now = new Date();
@@ -154,62 +144,60 @@ export const Chat = () => {
     
     if (isToday) {
       return date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit' 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
       });
     }
     
     return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
     });
   };
 
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-green-400 text-2xl animate-pulse">[LOADING...]</div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex items-start gap-3 ${
+            className={`flex items-start gap-2 text-sm ${
               message.userId === user?.uid ? 'flex-row-reverse' : ''
             }`}
           >
-            <img
-              src={message.userPhoto}
-              alt={message.userName}
-              className="w-8 h-8 rounded-full flex-shrink-0"
-            />
+            <div className="w-8 h-8 border border-green-400 flex items-center justify-center text-xs">
+              {message.userName?.[0]?.toUpperCase() || '?'}
+            </div>
             <div
-              className={`flex flex-col ${
+              className={`flex flex-col max-w-[70%] ${
                 message.userId === user?.uid ? 'items-end' : 'items-start'
               }`}
             >
-              <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+              <div className="flex items-center gap-2 text-xs text-green-600 mb-1">
                 <span>{message.userName}</span>
                 <span>{message.deviceInfo}</span>
                 <span>{formatTime(message.timestamp)}</span>
               </div>
               
               {message.text && (
-                <div
-                  className={`rounded-lg px-4 py-2 max-w-sm ${
-                    message.userId === user?.uid
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-900'
-                  }`}
-                >
+                <div className={`border ${
+                  message.userId === user?.uid
+                    ? 'border-cyan-400 text-cyan-400'
+                    : 'border-green-400 text-green-400'
+                } bg-black/50 px-3 py-2`}>
                   {message.text}
                 </div>
               )}
@@ -219,11 +207,11 @@ export const Chat = () => {
                   href={message.fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`mt-2 rounded-lg border-2 p-3 block max-w-sm ${
+                  className={`mt-2 border ${
                     message.userId === user?.uid
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-300 bg-gray-50'
-                  }`}
+                      ? 'border-cyan-400 text-cyan-400 hover:bg-cyan-400/10'
+                      : 'border-green-400 text-green-400 hover:bg-green-400/10'
+                  } bg-black/50 p-3 block transition-colors`}
                   onContextMenu={(e) => {
                     if ('ontouchstart' in window) {
                       e.preventDefault();
@@ -232,12 +220,12 @@ export const Chat = () => {
                   }}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl">📎</span>
+                    <span className="text-lg">[📎]</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className="font-bold truncate">
                         {message.fileName}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs opacity-70">
                         {formatFileSize(message.fileSize || 0)}
                       </p>
                     </div>
@@ -252,35 +240,33 @@ export const Chat = () => {
 
       {/* Upload progress */}
       {uploadingFile && (
-        <div className="px-4 py-2 bg-blue-50 border-t">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">Uploading {uploadingFile.file.name}</span>
-            <div className="flex-1 bg-gray-200 rounded-full h-2">
+        <div className="px-4 py-2 border-t border-green-400 text-green-400">
+          <div className="flex items-center gap-2 text-sm">
+            <span>[UPLOADING] {uploadingFile.file.name}</span>
+            <div className="flex-1 border border-green-400 h-2">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all"
+                className="bg-green-400 h-full transition-all"
                 style={{ width: `${uploadingFile.progress}%` }}
               />
             </div>
-            <span className="text-sm">{Math.round(uploadingFile.progress)}%</span>
+            <span>{Math.round(uploadingFile.progress)}%</span>
           </div>
           {uploadingFile.error && (
-            <p className="text-xs text-red-600 mt-1">{uploadingFile.error}</p>
+            <p className="text-xs text-red-400 mt-1">[ERROR] {uploadingFile.error}</p>
           )}
         </div>
       )}
 
       {/* Input area */}
-      <form onSubmit={sendMessage} className="p-4 border-t bg-white">
+      <form onSubmit={sendMessage} className="p-4 border-t border-green-400">
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 border border-green-400 text-green-400 hover:bg-green-400 hover:text-black transition-colors"
             disabled={!!uploadingFile}
           >
-            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-            </svg>
+            [+]
           </button>
           <input
             ref={fileInputRef}
@@ -296,16 +282,16 @@ export const Chat = () => {
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="&gt; ENTER MESSAGE..."
+            className="flex-1 px-3 py-2 bg-black border border-green-400 text-green-400 placeholder-green-600 focus:outline-none focus:border-glow"
             disabled={!!uploadingFile}
           />
           <button
             type="submit"
             disabled={!newMessage.trim() || !!uploadingFile}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 border border-green-400 text-green-400 hover:bg-green-400 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Send
+            [SEND]
           </button>
         </div>
       </form>
