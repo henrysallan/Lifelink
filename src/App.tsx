@@ -3,12 +3,13 @@ import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './hooks/useAuth'; // 
 import { Login } from './components/Login';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Chat } from './components/Chat';
 
 function ChatInterface() {
   const { user, logout } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -30,9 +31,7 @@ function ChatInterface() {
         </div>
       </header>
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <p className="text-gray-600">Welcome, {user?.displayName}! Chat interface coming next...</p>
-      </main>
+      <Chat />
     </div>
   );
 }
