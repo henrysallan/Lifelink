@@ -40,7 +40,7 @@ function ChatInterface() {
 function App() {
   return (
     <AuthProvider>
-      <Router basename="/cross-device-chat">
+      <Router basename="/Lifelink">
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
